@@ -7,6 +7,9 @@ package gocql
 import (
 	"errors"
 	"time"
+	"net"
+	"strconv"
+	"log"
 )
 
 // PoolConfig configures the connection pool used by the driver, it defaults to
@@ -74,6 +77,10 @@ type ClusterConfig struct {
 	// the filter will be ignored. If set will take precedence over any options set
 	// via Discovery
 	HostFilter HostFilter
+
+	// AddressTranslator will translate addresses found on peer discovery and/or
+	// node change events.
+	AddressTranslator AddressTranslator
 
 	// If IgnorePeerAddr is true and the address in system.peers does not match
 	// the supplied host by either initial hosts or discovered via events then the
@@ -144,6 +151,33 @@ func NewCluster(hosts ...string) *ClusterConfig {
 // session object that can be used to interact with the database.
 func (cfg *ClusterConfig) CreateSession() (*Session, error) {
 	return NewSession(*cfg)
+}
+
+// translateHostPort is a helper method that will use the given AddressTranslator
+// if defined, to translate the given host:port (addr) into a new host:port string.
+// If no AddressTranslator or if an error occurs, the given host:port will be returned.
+func (cfg *ClusterConfig) translateHostPort(hostPort string) (string) {
+	if cfg.AddressTranslator == nil {
+		return hostPort
+	}
+	host, port, err := parseHostPort(hostPort)
+	if err != nil {
+		return hostPort
+	}
+	newHost, newPort := cfg.AddressTranslator.Translate(host, port)
+	if gocqlDebug {
+		log.Printf("gocql: translating address '%s' to '%s:%d'", hostPort, newHost, newPort)
+	}
+	return net.JoinHostPort(newHost, strconv.Itoa(newPort))
+}
+
+func parseHostPort(hostPort string) (string, int, error) {
+	host, portStr, err := net.SplitHostPort(hostPort)
+	if err != nil {
+		return "", 0, err
+	}
+	port, _ := strconv.Atoi(portStr)
+	return host, port, nil
 }
 
 var (

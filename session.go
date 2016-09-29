@@ -633,6 +633,8 @@ func (s *Session) MapExecuteBatchCAS(batch *Batch, dest map[string]interface{}) 
 }
 
 func (s *Session) connect(host *HostInfo, errorHandler ConnErrorHandler) (*Conn, error) {
+	// FIXME (gus)
+	//return Connect(host, s.cfg.translateHostPort(addr), s.connCfg, errorHandler, s)
 	return Connect(host, s.connCfg, errorHandler, s)
 }
 

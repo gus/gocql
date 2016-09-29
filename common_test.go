@@ -143,3 +143,41 @@ func createSession(tb testing.TB) *Session {
 	cluster := createCluster()
 	return createSessionFromCluster(cluster, tb)
 }
+
+// createTestSession is hopefully moderately useful in actual unit tests
+func createTestSession() *Session {
+	config := NewCluster()
+	config.NumConns = 0
+	config.Timeout = 0
+	config.DisableInitialHostLookup = true
+	config.IgnorePeerAddr = true
+	config.PoolConfig.HostSelectionPolicy = RoundRobinHostPolicy()
+	session := &Session{
+		cfg:    *config,
+		connCfg: &ConnConfig{
+			Timeout: 10*time.Millisecond,
+			Keepalive: 0,
+		},
+		policy: config.PoolConfig.HostSelectionPolicy,
+	}
+	session.pool = config.PoolConfig.buildPool(session)
+	return session
+}
+
+func staticAddressTranslator(newAddr string, newPort int) AddressTranslator {
+	return AddressTranslatorFunc(func(addr string, port int) (string, int) {
+		return newAddr, newPort
+	})
+}
+
+func assertEqual(t *testing.T, description string, expected, actual interface{}) {
+	if expected != actual {
+		t.Errorf("expected %s to be (%+v) but was (%+v) instead", description, expected, actual)
+	}
+}
+
+func assertNil(t *testing.T, description string, actual interface{}) {
+	if actual != nil {
+		t.Errorf("expected %s to be (nil) but was (%+v) instead", description, actual)
+	}
+}
