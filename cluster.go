@@ -139,24 +139,24 @@ func (cfg *ClusterConfig) translateHostPort(hostPort string) (string) {
 	if cfg.AddressTranslator == nil {
 		return hostPort
 	}
-	addr, port, err := parseIPPort(hostPort)
+	host, port, err := parseHostPort(hostPort)
 	if err != nil {
 		return hostPort
 	}
-	newAddr, newPort := cfg.AddressTranslator.Translate(addr, port)
+	newHost, newPort := cfg.AddressTranslator.Translate(host, port)
 	if gocqlDebug {
-		log.Printf("gocql: translating address '%s' to '%s:%d'", hostPort, newAddr.String(), newPort)
+		log.Printf("gocql: translating address '%s' to '%s:%d'", hostPort, newHost, newPort)
 	}
-	return net.JoinHostPort(newAddr.String(), strconv.Itoa(newPort))
+	return net.JoinHostPort(newHost, strconv.Itoa(newPort))
 }
 
-func parseIPPort(ipPort string) (net.IP, int, error) {
-	addr, portStr, err := net.SplitHostPort(ipPort)
+func parseHostPort(hostPort string) (string, int, error) {
+	host, portStr, err := net.SplitHostPort(hostPort)
 	if err != nil {
-		return nil, 0, err
+		return "", 0, err
 	}
 	port, _ := strconv.Atoi(portStr)
-	return net.ParseIP(addr), port, nil
+	return host, port, nil
 }
 
 var (

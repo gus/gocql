@@ -7,11 +7,11 @@ import (
 	"time"
 )
 
-func setupTestTcpServer(t *testing.T) (net.Listener, net.IP, int) {
+func setupTestTcpServer(t *testing.T) (net.Listener, string, int) {
 	srvr, err := net.Listen("tcp4", "0.0.0.0:0")
 	assertNil(t, "error when creating tcp server", err)
-	testHost, testPort, err := parseIPPort(srvr.Addr().String())
-	log.Printf("using host=%s and port=%d for test tcp server (err=%v)", testHost.String(), testPort, err)
+	testHost, testPort, err := parseHostPort(srvr.Addr().String())
+	log.Printf("using host=%s and port=%d for test tcp server (err=%v)", testHost, testPort, err)
 	return srvr, testHost, testPort
 }
 
@@ -53,7 +53,7 @@ func TestSession_connect_WithNoTranslator(t *testing.T) {
 	go tcpConnWaitAndClose(t, srvr, tchan)
 
 	session.connect(srvr.Addr().String(), testConnErrorHandler(t), &HostInfo{
-		peer: testHost.String(),
+		peer: testHost,
 		port: testPort,
 	})
 

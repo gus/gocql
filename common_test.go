@@ -8,7 +8,6 @@ import (
 	"sync"
 	"testing"
 	"time"
-	"net"
 )
 
 var (
@@ -165,8 +164,8 @@ func createTestSession() *Session {
 	return session
 }
 
-func staticAddressTranslator(newAddr net.IP, newPort int) AddressTranslator {
-	return AddressTranslatorFunc(func(addr net.IP, port int) (net.IP, int) {
+func staticAddressTranslator(newAddr string, newPort int) AddressTranslator {
+	return AddressTranslatorFunc(func(addr string, port int) (string, int) {
 		return newAddr, newPort
 	})
 }
