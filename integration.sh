@@ -59,7 +59,7 @@ function run_tests() {
 	ccm status
 	ccm node1 nodetool status
 
-	local args="-v -gocql.timeout=60s -runssl -proto=$proto -rf=3 -clusterSize=$clusterSize -autowait=2000ms -compressor=snappy -gocql.cversion=$version -cluster=$(ccm liveset) ./..."
+	local args="-v -p 1 -gocql.timeout=60s -runssl -proto=$proto -rf=3 -clusterSize=$clusterSize -autowait=2000ms -compressor=snappy -gocql.cversion=$version -cluster=$(ccm liveset) ./..."
 
     go test -v -tags unit
 
