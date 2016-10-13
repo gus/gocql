@@ -173,6 +173,9 @@ func Connect(host *HostInfo, addr string, cfg *ConnConfig,
 	}
 
 	if err != nil {
+		if gocqlDebug {
+			log.Printf("gocql: error dialing '%s': %v", addr, err)
+		}
 		return nil, err
 	}
 
