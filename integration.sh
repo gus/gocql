@@ -73,7 +73,7 @@ function run_tests() {
 
 		ccm clear
 		ccm start
-		sleep 5s
+		sleep 10s
 
 		go test -tags "ccm gocql_debug" -timeout=5m $args
 	fi
