@@ -6,10 +6,10 @@ package gocql
 
 import (
 	"errors"
-	"time"
+	"log"
 	"net"
 	"strconv"
-	"log"
+	"time"
 )
 
 // PoolConfig configures the connection pool used by the driver, it defaults to
@@ -135,7 +135,7 @@ func (cfg *ClusterConfig) CreateSession() (*Session, error) {
 // translateHostPort is a helper method that will use the given AddressTranslator
 // if defined, to translate the given host:port (addr) into a new host:port string.
 // If no AddressTranslator or if an error occurs, the given host:port will be returned.
-func (cfg *ClusterConfig) translateHostPort(hostPort string) (string) {
+func (cfg *ClusterConfig) translateHostPort(hostPort string) string {
 	if cfg.AddressTranslator == nil {
 		return hostPort
 	}

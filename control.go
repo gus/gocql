@@ -130,7 +130,6 @@ func (c *controlConn) shuffleDial(endpoints []string) (conn *Conn, err error) {
 		}
 
 		hostInfo, _ := c.session.ring.addHostIfMissing(host)
-		// TODO (gus) use translated address here?
 		conn, err = c.session.connect(addr, c, hostInfo)
 		if err == nil {
 			return conn, err
@@ -239,7 +238,6 @@ func (c *controlConn) reconnect(refreshring bool) {
 	var newConn *Conn
 	if addr != "" {
 		// try to connect to the old host
-		// TODO (gus) use translated address here?
 		conn, err := c.session.connect(addr, c, oldConn.host)
 		if err != nil {
 			// host is dead
@@ -262,7 +260,6 @@ func (c *controlConn) reconnect(refreshring bool) {
 		}
 
 		var err error
-		// TODO (gus) use translated address here?
 		newConn, err = c.session.connect(host.Peer(), c, host)
 		if err != nil {
 			// TODO: add log handler for things like this

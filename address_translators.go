@@ -1,12 +1,12 @@
 package gocql
 
 // AddressTranslator provides a way to translate node addresses (and ports) that are
-// discovered or received as a node event. This is especially useful in ec2 (when
-// using the EC2MultiRegionAddressTranslator) to translate public IPs to private IPs
-// when possible.
+// discovered or received as a node event. This can be useful in an ec2 environment,
+// for instance, to translate public IPs to private IPs.
 type AddressTranslator interface {
 	// Translate will translate the provided address and/or port to another
-	// address and/or port
+	// address and/or port. If no translation is possible, Translate will return the
+	// address and port provided to it.
 	Translate(addr string, port int) (string, int)
 }
 
