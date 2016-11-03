@@ -1,27 +1,73 @@
 package gocql
 
 import (
-	"log"
+	"golang.org/x/net/context"
 	"net"
+	"strconv"
+	"sync"
 	"testing"
 	"time"
 )
 
-func setupTestTcpServer(t *testing.T) (net.Listener, string, int) {
-	srvr, err := net.Listen("tcp4", "0.0.0.0:0")
-	assertNil(t, "error when creating tcp server", err)
-	testHost, testPort, err := parseHostPort(srvr.Addr().String())
-	log.Printf("using host=%s and port=%d for test tcp server (err=%v)", testHost, testPort, err)
-	return srvr, testHost, testPort
+type OneConnTestServer struct {
+	Err  error
+	Addr net.IP
+	Port int
+
+	listener   net.Listener
+	acceptChan chan struct{}
+	mu         sync.Mutex
+	closed     bool
 }
 
-func tcpConnWaitAndClose(t *testing.T, srvr net.Listener, tchan chan<- error) {
-	conn, err := srvr.Accept()
+func NewOneConnTestServer() (*OneConnTestServer, error) {
+	lstn, err := net.Listen("tcp4", "localhost:0")
+	if err != nil {
+		return nil, err
+	}
+	addr, port := parseAddressPort(lstn.Addr().String())
+	return &OneConnTestServer{
+		listener:   lstn,
+		acceptChan: make(chan struct{}),
+		Addr:       addr,
+		Port:       port,
+	}, nil
+}
+
+func (c *OneConnTestServer) Accepted() chan struct{} {
+	return c.acceptChan
+}
+
+func (c *OneConnTestServer) Close() {
+	c.lockedClose()
+}
+
+func (c *OneConnTestServer) Serve() {
+	conn, err := c.listener.Accept()
+	c.Err = err
 	if conn != nil {
-		log.Printf("connection received from addr=%+v", conn.RemoteAddr())
 		conn.Close()
 	}
-	tchan <- err
+	c.lockedClose()
+}
+
+func (c *OneConnTestServer) lockedClose() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if !c.closed {
+		close(c.acceptChan)
+		c.listener.Close()
+		c.closed = true
+	}
+}
+
+func parseAddressPort(hostPort string) (net.IP, int) {
+	host, portStr, err := net.SplitHostPort(hostPort)
+	if err != nil {
+		return net.ParseIP(""), 0
+	}
+	port, _ := strconv.Atoi(portStr)
+	return net.ParseIP(host), port
 }
 
 func testConnErrorHandler(t *testing.T) ConnErrorHandler {
@@ -30,53 +76,56 @@ func testConnErrorHandler(t *testing.T) ConnErrorHandler {
 	})
 }
 
-func assertConnectionEventually(t *testing.T, delay time.Duration, tchan <-chan error) {
+func assertConnectionEventually(t *testing.T, wait time.Duration, srvr *OneConnTestServer) {
+	ctx, cancel := context.WithTimeout(context.Background(), wait)
+	defer cancel()
+
 	select {
-	case err := <-tchan:
-		if err != nil {
-			t.Errorf("accepting connection: %v", err)
+	case <-ctx.Done():
+		if ctx.Err() != nil {
+			t.Errorf("waiting for connection: %v", ctx.Err())
 		}
-	case <-time.After(delay):
-		t.Error("timed out waiting for connection")
+	case <-srvr.Accepted():
+		if srvr.Err != nil {
+			t.Errorf("accepting connection: %v", srvr.Err)
+		}
 	}
 }
 
 func TestSession_connect_WithNoTranslator(t *testing.T) {
-	srvr, testHost, testPort := setupTestTcpServer(t)
+	srvr, err := NewOneConnTestServer()
+	assertNil(t, "error when creating tcp server", err)
 	defer srvr.Close()
 
 	session := createTestSession()
 	defer session.Close()
 
-	tchan := make(chan error)
-	defer close(tchan)
-	go tcpConnWaitAndClose(t, srvr, tchan)
+	go srvr.Serve()
 
-	session.connect(srvr.Addr().String(), testConnErrorHandler(t), &HostInfo{
-		peer: testHost,
-		port: testPort,
-	})
+	Connect(&HostInfo{
+		peer: srvr.Addr,
+		port: srvr.Port,
+	}, session.connCfg, testConnErrorHandler(t), session)
 
-	assertConnectionEventually(t, 500*time.Millisecond, tchan)
+	assertConnectionEventually(t, 500*time.Millisecond, srvr)
 }
 
 func TestSession_connect_WithTranslator(t *testing.T) {
-	srvr, testHost, testPort := setupTestTcpServer(t)
+	srvr, err := NewOneConnTestServer()
+	assertNil(t, "error when creating tcp server", err)
 	defer srvr.Close()
 
 	session := createTestSession()
 	defer session.Close()
-	session.cfg.AddressTranslator = staticAddressTranslator(testHost, testPort)
+	session.cfg.AddressTranslator = staticAddressTranslator(srvr.Addr, srvr.Port)
 
-	tchan := make(chan error)
-	defer close(tchan)
-	go tcpConnWaitAndClose(t, srvr, tchan)
+	go srvr.Serve()
 
 	// the provided address will be translated
-	session.connect("10.10.10.10:5432", testConnErrorHandler(t), &HostInfo{
-		peer: "10.10.10.10",
+	Connect(&HostInfo{
+		peer: net.ParseIP("10.10.10.10"),
 		port: 5432,
-	})
+	}, session.connCfg, testConnErrorHandler(t), session)
 
-	assertConnectionEventually(t, 500*time.Millisecond, tchan)
+	assertConnectionEventually(t, 500*time.Millisecond, srvr)
 }

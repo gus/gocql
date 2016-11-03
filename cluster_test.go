@@ -3,12 +3,12 @@ package gocql
 import (
 	"testing"
 	"time"
+	"net"
 )
 
 func TestNewCluster_Defaults(t *testing.T) {
 	cfg := NewCluster()
 	assertEqual(t, "cluster config cql version", "3.0.0", cfg.CQLVersion)
-	assertEqual(t, "cluster config proto version", 2, cfg.ProtoVersion)
 	assertEqual(t, "cluster config timeout", 600*time.Millisecond, cfg.Timeout)
 	assertEqual(t, "cluster config port", 9042, cfg.Port)
 	assertEqual(t, "cluster config num-conns", 2, cfg.NumConns)
@@ -28,37 +28,26 @@ func TestNewCluster_WithHosts(t *testing.T) {
 	assertEqual(t, "cluster config host 1", "addr2", cfg.Hosts[1])
 }
 
-func TestClusterConfig_translateHostAndPort_NilTranslator(t *testing.T) {
+func TestClusterConfig_translateAddressAndPort_NilTranslator(t *testing.T) {
 	cfg := NewCluster()
 	assertNil(t, "cluster config address translator", cfg.AddressTranslator)
-	hostport := cfg.translateHostPort("10.0.0.1:1234")
-	assertEqual(t, "translated host and port", "10.0.0.1:1234", hostport)
+	newAddr, newPort := cfg.translateAddressPort(net.ParseIP("10.0.0.1"), 1234)
+	assertTrue(t, "same address as provided", net.ParseIP("10.0.0.1").Equal(newAddr))
+	assertEqual(t, "translated host and port", 1234, newPort)
 }
 
-func TestClusterConfig_translateHostAndPort_EmptyHost(t *testing.T) {
+func TestClusterConfig_translateAddressAndPort_EmptyAddr(t *testing.T) {
 	cfg := NewCluster()
-	cfg.AddressTranslator = staticAddressTranslator("10.10.10.10", 5432)
-	hostport := cfg.translateHostPort("")
-	assertEqual(t, "translated host and port", "", hostport)
+	cfg.AddressTranslator = staticAddressTranslator(net.ParseIP("10.10.10.10"), 5432)
+	newAddr, newPort := cfg.translateAddressPort(net.IP([]byte{}), 0)
+	assertTrue(t, "translated address is still empty", len(newAddr) == 0)
+	assertEqual(t, "translated port", 0, newPort)
 }
 
-func TestClusterConfig_translateHostAndPort_NoPort(t *testing.T) {
+func TestClusterConfig_translateAddressAndPort_Success(t *testing.T) {
 	cfg := NewCluster()
-	cfg.AddressTranslator = staticAddressTranslator("10.10.10.10", 5432)
-	hostport := cfg.translateHostPort("10.0.0.1")
-	assertEqual(t, "translated host and port", "10.0.0.1", hostport)
-}
-
-func TestClusterConfig_translateHostAndPort_HostnameProvided(t *testing.T) {
-	cfg := NewCluster()
-	cfg.AddressTranslator = staticAddressTranslator("10.10.10.10", 5432)
-	hostport := cfg.translateHostPort("myhost:5432")
-	assertEqual(t, "translated host and port", "10.10.10.10:5432", hostport)
-}
-
-func TestClusterConfig_translateHostAndPort_IPProvided(t *testing.T) {
-	cfg := NewCluster()
-	cfg.AddressTranslator = staticAddressTranslator("10.10.10.10", 5432)
-	hostport := cfg.translateHostPort("10.0.0.1:2345")
-	assertEqual(t, "translated host and port", "10.10.10.10:5432", hostport)
+	cfg.AddressTranslator = staticAddressTranslator(net.ParseIP("10.10.10.10"), 5432)
+	newAddr, newPort := cfg.translateAddressPort(net.ParseIP("10.0.0.1"), 2345)
+	assertTrue(t, "translated address", net.ParseIP("10.10.10.10").Equal(newAddr))
+	assertEqual(t, "translated port", 5432, newPort)
 }

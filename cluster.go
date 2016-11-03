@@ -6,10 +6,9 @@ package gocql
 
 import (
 	"errors"
-	"time"
-	"net"
-	"strconv"
 	"log"
+	"net"
+	"time"
 )
 
 // PoolConfig configures the connection pool used by the driver, it defaults to
@@ -153,31 +152,19 @@ func (cfg *ClusterConfig) CreateSession() (*Session, error) {
 	return NewSession(*cfg)
 }
 
-// translateHostPort is a helper method that will use the given AddressTranslator
-// if defined, to translate the given host:port (addr) into a new host:port string.
-// If no AddressTranslator or if an error occurs, the given host:port will be returned.
-func (cfg *ClusterConfig) translateHostPort(hostPort string) (string) {
-	if cfg.AddressTranslator == nil {
-		return hostPort
+// translateAddressPort is a helper method that will use the given AddressTranslator
+// if defined, to translate the given address and port into a possibly new address
+// and port, If no AddressTranslator or if an error occurs, the given address and
+// port will be returned.
+func (cfg *ClusterConfig) translateAddressPort(addr net.IP, port int) (net.IP, int) {
+	if cfg.AddressTranslator == nil || len(addr) == 0 {
+		return addr, port
 	}
-	host, port, err := parseHostPort(hostPort)
-	if err != nil {
-		return hostPort
-	}
-	newHost, newPort := cfg.AddressTranslator.Translate(host, port)
+	newAddr, newPort := cfg.AddressTranslator.Translate(addr, port)
 	if gocqlDebug {
-		log.Printf("gocql: translating address '%s' to '%s:%d'", hostPort, newHost, newPort)
+		log.Printf("gocql: translating address '%v:%d' to '%v:%d'", addr, port, newAddr, newPort)
 	}
-	return net.JoinHostPort(newHost, strconv.Itoa(newPort))
-}
-
-func parseHostPort(hostPort string) (string, int, error) {
-	host, portStr, err := net.SplitHostPort(hostPort)
-	if err != nil {
-		return "", 0, err
-	}
-	port, _ := strconv.Atoi(portStr)
-	return host, port, nil
+	return newAddr, newPort
 }
 
 var (

@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"golang.org/x/net/context"
-	"container/ring"
 )
 
 var (

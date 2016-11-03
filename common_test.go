@@ -8,6 +8,7 @@ import (
 	"sync"
 	"testing"
 	"time"
+	"net"
 )
 
 var (
@@ -164,10 +165,16 @@ func createTestSession() *Session {
 	return session
 }
 
-func staticAddressTranslator(newAddr string, newPort int) AddressTranslator {
-	return AddressTranslatorFunc(func(addr string, port int) (string, int) {
+func staticAddressTranslator(newAddr net.IP, newPort int) AddressTranslator {
+	return AddressTranslatorFunc(func(addr net.IP, port int) (net.IP, int) {
 		return newAddr, newPort
 	})
+}
+
+func assertTrue(t *testing.T, description string, value bool) {
+	if !value {
+		t.Errorf("expected %s to be true", description)
+	}
 }
 
 func assertEqual(t *testing.T, description string, expected, actual interface{}) {
@@ -179,5 +186,11 @@ func assertEqual(t *testing.T, description string, expected, actual interface{})
 func assertNil(t *testing.T, description string, actual interface{}) {
 	if actual != nil {
 		t.Errorf("expected %s to be (nil) but was (%+v) instead", description, actual)
+	}
+}
+
+func assertNotNil(t *testing.T, description string, actual interface{}) {
+	if actual == nil {
+		t.Errorf("expected %s not to be (nil)", description)
 	}
 }
