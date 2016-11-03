@@ -148,7 +148,7 @@ func createSession(tb testing.TB) *Session {
 // createTestSession is hopefully moderately useful in actual unit tests
 func createTestSession() *Session {
 	config := NewCluster()
-	config.NumConns = 0
+	config.NumConns = 1
 	config.Timeout = 0
 	config.DisableInitialHostLookup = true
 	config.IgnorePeerAddr = true
